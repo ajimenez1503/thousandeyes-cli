@@ -22,7 +22,8 @@
       "name": "canary-network",
       "type": "agent-to-server",
       "config": {
-        "server": "canary.example.com:443",
+        "server": "canary.example.com",
+        "port": 443,
         "protocol": "tcp",
         "agents": [{"agentId": "6"}]
       },

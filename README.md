@@ -211,6 +211,8 @@ The version 1 JSON format contains `accountGroupId`, an optional suite `timeout`
 
 Every configured agent must return applicable results from one coherent round. Missing values remain pending until the suite deadline; they never become zero or success. A known primary measurement failure can fail immediately without waiting for timing values that may never arrive. Network diagnostics attached to HTTP tests do not automatically become additional gates. When testing an expected non-2xx/3xx response, also align the native payload's `desiredStatusCode` setting; a native test error remains a failed check even if its response code appears in `expectedResponseCodes`.
 
+For agent-to-server creation, set `server` to the hostname or IP address and supply a separate integer `port` for TCP or UDP targets. The API response may combine them as `hostname:port`; that response format is not accepted as the creation target in the verified STG API.
+
 This first slice supports individual Cloud and Enterprise Agents. Cluster-agent completeness and network directions other than `to-target` are not supported. The full configuration is validated before submitting tests. Unsupported test types, duplicate agents, incompatible thresholds, and invalid durations are rejected.
 
 ### Results and exit status
@@ -249,7 +251,9 @@ Configure the suite targets to reach the canary or preview revision explicitly. 
 
 ### Validation status and next adapters
 
-The implementation is verified with mock API integration tests and process-level exit-code tests. Live result completeness, minimum permissions, and agent behavior still need validation in a controlled ThousandEyes account before this command is used as a production deployment gate. Argo manifests are examples, not evidence of a deployed rollout.
+The merged implementation passed GitHub CI, snapshot packaging, mock API integration tests, and process-level exit-code tests. A controlled STG pilot on 2026-10-29 verified HTTP status and timing checks, TCP network loss and latency checks, successful exit status, and a deliberate blocking assertion failure from one Cloud Agent. The HTTP target was an unauthenticated STG API endpoint with an expected `401` response; this verifies measurement and evaluation behavior rather than an authenticated application journey.
+
+The Argo examples were exercised with a real local Argo Rollouts controller and a mock ThousandEyes API. Healthy results promoted the candidate; HTTP failures, network failures, and incomplete measurements aborted it and retained the stable revision. Live ThousandEyes execution from an Argo Job, Enterprise Agents, minimum required API permissions, and production canary targeting remain unverified.
 
 Saved-test cloning, label selection, variable overrides, the standalone GitHub marketplace Action, API/DNS/browser/voice adapters, and runner-local connectivity are subsequent work. The shared execution engine is the foundation for those integrations.
 
