@@ -1,0 +1,9 @@
+.git
+.idea
+bin
+dist
+coverage.out
+test-report.xml
+docs/context
+*.synthetics-report.json
+*.synthetics-report.xml

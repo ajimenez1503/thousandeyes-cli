@@ -27,8 +27,8 @@ func TestUnknownCommandHintPrintedOnce(t *testing.T) {
 	cmd.Dir = "."
 
 	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("expected graceful exit for unknown command; output:\n%s", string(out))
+	if err == nil {
+		t.Fatalf("expected nonzero exit for unknown command; output:\n%s", string(out))
 	}
 
 	output := string(out)

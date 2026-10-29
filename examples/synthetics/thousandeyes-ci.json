@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "accountGroupId": "123456",
+  "timeout": "5m",
+  "pollInterval": "5s",
+  "tests": [
+    {
+      "name": "canary-http",
+      "type": "http-server",
+      "config": {
+        "url": "https://canary.example.com/health",
+        "agents": [{"agentId": "6"}],
+        "networkMeasurements": false
+      },
+      "thresholds": {
+        "expectedResponseCodes": [200],
+        "maxResponseTime": 2000,
+        "maxTotalTime": 3000
+      }
+    },
+    {
+      "name": "canary-network",
+      "type": "agent-to-server",
+      "config": {
+        "server": "canary.example.com:443",
+        "protocol": "tcp",
+        "agents": [{"agentId": "6"}]
+      },
+      "thresholds": {
+        "maxLoss": 0,
+        "maxLatency": 150,
+        "maxJitter": 50
+      }
+    }
+  ]
+}
