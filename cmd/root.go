@@ -17,6 +17,8 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/spf13/cobra"
 	apicmd "github.com/thousandeyes/thousandeyes-cli/cmd/api"
 	"github.com/thousandeyes/thousandeyes-cli/internal/config"
@@ -31,9 +33,10 @@ const baseURLFlagName = "base-url"
 
 func newRootCommand() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "thousandeyes",
-		Short:   "CLI for ThousandEyes API workflows",
-		Version: version.Version,
+		Use:          "thousandeyes",
+		Short:        "CLI for ThousandEyes API workflows",
+		Version:      version.Version,
+		SilenceUsage: true,
 	}
 	cmd.PersistentFlags().String("token", "", "ThousandEyes API bearer token (or TE_TOKEN env var)")
 	cmd.PersistentFlags().String(baseURLFlagName, "", "ThousandEyes platform base URL without /v7 (or TE_BASE_URL env var)")
@@ -60,11 +63,16 @@ func newRootCommand() *cobra.Command {
 		return nil
 	}
 	apicmd.RegisterRootResourceCommands(cmd, func() config.Config { return cfg })
+	cmd.AddCommand(newSyntheticsCommand(func() config.Config { return cfg }))
 	apicmd.SetRootHelpFunc(cmd)
 	configureCompletionCommand(cmd)
 	return cmd
 }
 
-func Execute() {
-	rootCmd.Execute()
+func Execute() error {
+	return rootCmd.Execute()
+}
+
+func ExecuteContext(ctx context.Context) error {
+	return rootCmd.ExecuteContext(ctx)
 }

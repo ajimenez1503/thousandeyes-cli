@@ -1,0 +1,11 @@
+# Insert this analysis step in spec.strategy.canary.steps after canary readiness.
+analysis:
+  templates:
+    - templateName: thousandeyes-synthetics
+  args:
+    - name: image
+      value: your-registry/thousandeyes-cli:your-version
+    - name: account-group-id
+      value: "123456"
+    - name: suite-config-map
+      value: thousandeyes-canary-suite
