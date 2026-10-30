@@ -31,8 +31,17 @@ func WriteSummary(w io.Writer, report Report) error {
 				return err
 			}
 		}
+		if test.Target != "" {
+			if _, err := fmt.Fprintf(w, "  Target: %s\n", test.Target); err != nil {
+				return err
+			}
+		}
 		for _, agent := range test.Agents {
-			if _, err := fmt.Fprintf(w, "  Agent %s: %s", agent.AgentID, agent.Status); err != nil {
+			name := ""
+			if agent.AgentName != "" {
+				name = " (" + agent.AgentName + ")"
+			}
+			if _, err := fmt.Fprintf(w, "  Agent %s%s: %s", agent.AgentID, name, agent.Status); err != nil {
 				return err
 			}
 			if agent.Message != "" {
@@ -85,6 +94,17 @@ type junitOutcome struct {
 	Message string `xml:"message,attr,omitempty"`
 }
 
+func junitTestProperties(test TestResult) []junitProperty {
+	properties := []junitProperty{
+		{Name: "executionRule", Value: test.ExecutionRule},
+		{Name: "testId", Value: test.TestID},
+	}
+	if test.Target != "" {
+		properties = append(properties, junitProperty{Name: "target", Value: test.Target})
+	}
+	return properties
+}
+
 func WriteJUnit(w io.Writer, report Report) error {
 	seconds := report.FinishedAt.Sub(report.StartedAt).Seconds()
 	if seconds < 0 {
@@ -103,14 +123,14 @@ func WriteJUnit(w io.Writer, report Report) error {
 		for _, agent := range agents {
 			result := junitCase{
 				Name: test.Name, Classname: test.Type,
-				Properties: []junitProperty{
-					{Name: "executionRule", Value: test.ExecutionRule},
-					{Name: "testId", Value: test.TestID},
-				},
+				Properties: junitTestProperties(test),
 			}
 			if agent.AgentID != "" {
 				result.Name += " / agent " + agent.AgentID
 				result.Properties = append(result.Properties, junitProperty{Name: "agentId", Value: agent.AgentID})
+			}
+			if agent.AgentName != "" {
+				result.Properties = append(result.Properties, junitProperty{Name: "agentName", Value: agent.AgentName})
 			}
 			if agent.RoundID != "" {
 				result.Properties = append(result.Properties, junitProperty{Name: "roundId", Value: agent.RoundID})
@@ -146,7 +166,8 @@ func WriteJUnit(w io.Writer, report Report) error {
 		if (test.Status == "error" || test.Status == "timed-out") && !executionErrorRepresented {
 			suite.Cases = append(suite.Cases, junitCase{
 				Name: test.Name + " / execution", Classname: test.Type,
-				Error: &junitOutcome{Type: test.Status, Message: test.Message},
+				Properties: junitTestProperties(test),
+				Error:      &junitOutcome{Type: test.Status, Message: test.Message},
 			})
 			suite.Errors++
 		}

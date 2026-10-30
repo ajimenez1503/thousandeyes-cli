@@ -20,7 +20,8 @@ type link struct {
 
 type resultRow struct {
 	Agent struct {
-		AgentID string `json:"agentId"`
+		AgentID   string `json:"agentId"`
+		AgentName string `json:"agentName"`
 	} `json:"agent"`
 	RoundID      json.Number `json:"roundId"`
 	ResponseCode *float64    `json:"responseCode"`
@@ -168,7 +169,7 @@ func evaluateRows(test TestConfig, ids []string, rows []resultRow) ([]AgentResul
 }
 
 func evaluateRow(test TestConfig, row resultRow) (AgentResult, bool, error) {
-	outcome := AgentResult{AgentID: row.Agent.AgentID, RoundID: row.RoundID.String(), Status: "pending", Metrics: make(map[string]float64), URL: sanitizeAppLink(row.Links.AppLink.Href)}
+	outcome := AgentResult{AgentID: row.Agent.AgentID, AgentName: row.Agent.AgentName, RoundID: row.RoundID.String(), Status: "pending", Metrics: make(map[string]float64), URL: sanitizeAppLink(row.Links.AppLink.Href)}
 	metrics := map[string]*float64{"responseCode": row.ResponseCode, "responseTime": row.ResponseTime, "totalTime": row.TotalTime}
 	if test.Type == "agent-to-server" {
 		metrics = map[string]*float64{"loss": row.Loss, "avgLatency": row.AvgLatency, "jitter": row.Jitter}

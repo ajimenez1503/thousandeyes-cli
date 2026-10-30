@@ -119,7 +119,7 @@ func TestSyntheticsHTTPWaitsForAllAgentsAndWritesReports(t *testing.T) {
 	if len(report.Tests) != 1 || report.Tests[0].Status != "passed" || len(report.Tests[0].Agents) != 2 {
 		t.Fatalf("unexpected sanitized report: %s", data)
 	}
-	for _, sensitive := range []string{"synthetics-test-token", "secret-request-header", "https://target.invalid"} {
+	for _, sensitive := range []string{"synthetics-test-token", "secret-request-header"} {
 		if strings.Contains(string(data)+stdout+stderr, sensitive) {
 			t.Errorf("output exposed %q", sensitive)
 		}
@@ -214,14 +214,14 @@ func TestSyntheticsExecutionRules(t *testing.T) {
 
 func TestSyntheticsAPIErrorBodiesAreNotExposed(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		syntheticJSON(t, w, http.StatusUnauthorized, map[string]any{"detail": "private-api-body synthetics-test-token https://target.invalid"})
+		syntheticJSON(t, w, http.StatusUnauthorized, map[string]any{"detail": "private-api-body synthetics-test-token https://private-error.invalid"})
 	}))
 	defer server.Close()
 	stdout, stderr, err := executeSyntheticSuite(t, server.URL, singleHTTPConfig("non-blocking"), "--json")
 	if err == nil {
 		t.Fatal("authentication failure cannot become a non-blocking test failure")
 	}
-	for _, secret := range []string{"private-api-body", "synthetics-test-token", "https://target.invalid"} {
+	for _, secret := range []string{"private-api-body", "synthetics-test-token", "https://private-error.invalid"} {
 		if strings.Contains(stdout+stderr+err.Error(), secret) {
 			t.Errorf("exposed API error contents: %q", secret)
 		}

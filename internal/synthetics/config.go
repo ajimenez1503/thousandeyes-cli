@@ -69,18 +69,20 @@ type TestResult struct {
 	Type          string        `json:"type"`
 	ExecutionRule string        `json:"executionRule"`
 	TestID        string        `json:"testId,omitempty"`
+	Target        string        `json:"target,omitempty"`
 	Status        string        `json:"status"`
 	Message       string        `json:"message,omitempty"`
 	Agents        []AgentResult `json:"agents"`
 }
 
 type AgentResult struct {
-	AgentID string             `json:"agentId"`
-	RoundID string             `json:"roundId,omitempty"`
-	Status  string             `json:"status"`
-	Message string             `json:"message,omitempty"`
-	Metrics map[string]float64 `json:"metrics,omitempty"`
-	URL     string             `json:"url,omitempty"`
+	AgentID   string             `json:"agentId"`
+	AgentName string             `json:"agentName,omitempty"`
+	RoundID   string             `json:"roundId,omitempty"`
+	Status    string             `json:"status"`
+	Message   string             `json:"message,omitempty"`
+	Metrics   map[string]float64 `json:"metrics,omitempty"`
+	URL       string             `json:"url,omitempty"`
 }
 
 func (r Report) Failed() bool {
