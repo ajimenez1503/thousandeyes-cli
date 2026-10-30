@@ -178,7 +178,7 @@ Examples:
 
 ## Synthetic checks for CI and progressive delivery
 
-Run HTTP-server and agent-to-server instant tests from a repository JSON file:
+Run HTTP-server and agent-to-server instant tests from a repository JSON file, such as the [example suite](examples/synthetics/thousandeyes-ci.json):
 
 ```bash
 export TE_TOKEN="<thousandeyes-bearer-token>"
