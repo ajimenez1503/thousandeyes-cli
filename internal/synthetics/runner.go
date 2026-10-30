@@ -22,6 +22,7 @@ type instantResponse struct {
 	Agents []struct {
 		AgentID   string `json:"agentId"`
 		AgentType string `json:"agentType"`
+		AgentName string `json:"agentName"`
 	} `json:"agents"`
 	Links struct {
 		TestResults []link `json:"testResults"`
@@ -70,7 +71,7 @@ func Run(ctx context.Context, config Config, options Options) (report Report, er
 		if rule == "" {
 			rule = "blocking"
 		}
-		result := TestResult{Name: test.Name, Type: test.Type, ExecutionRule: rule, Status: "skipped", Agents: []AgentResult{}}
+		result := TestResult{Name: test.Name, Type: test.Type, ExecutionRule: rule, Target: reportTarget(test, options.Token), Status: "skipped", Agents: []AgentResult{}}
 		if rule == "skipped" {
 			report.Tests = append(report.Tests, result)
 			continue
@@ -78,7 +79,7 @@ func Run(ctx context.Context, config Config, options Options) (report Report, er
 		if err := ctx.Err(); err != nil {
 			markExecutionError(&result, err)
 			report.Tests = append(report.Tests, result)
-			appendUnstarted(&report, config.Tests[index+1:])
+			appendUnstarted(&report, config.Tests[index+1:], options.Token)
 			return report, safeExecutionError(err)
 		}
 		ids, _ := test.agentIDs()
@@ -91,20 +92,20 @@ func Run(ctx context.Context, config Config, options Options) (report Report, er
 		}
 		report.Tests = append(report.Tests, result)
 		if err != nil {
-			appendUnstarted(&report, config.Tests[index+1:])
+			appendUnstarted(&report, config.Tests[index+1:], options.Token)
 			return report, safeExecutionError(err)
 		}
 	}
 	return report, nil
 }
 
-func appendUnstarted(report *Report, tests []TestConfig) {
+func appendUnstarted(report *Report, tests []TestConfig, token string) {
 	for _, test := range tests {
 		rule := test.ExecutionRule
 		if rule == "" {
 			rule = "blocking"
 		}
-		report.Tests = append(report.Tests, TestResult{Name: test.Name, Type: test.Type, ExecutionRule: rule, Status: "skipped", Message: "not started after an execution error", Agents: []AgentResult{}})
+		report.Tests = append(report.Tests, TestResult{Name: test.Name, Type: test.Type, ExecutionRule: rule, Target: reportTarget(test, token), Status: "skipped", Message: "not started after an execution error", Agents: []AgentResult{}})
 	}
 }
 
@@ -159,6 +160,11 @@ func runTest(ctx context.Context, client *apiClient, test TestConfig, ids []stri
 	if err := validateAssignedAgents(instant, ids); err != nil {
 		return err
 	}
+	names := make(map[string]string, len(instant.Agents))
+	for _, agent := range instant.Agents {
+		names[agent.AgentID] = reportText(agent.AgentName, client.token, 160)
+	}
+	client.enrichAgents(result.Agents, names, instant.TestID)
 	endpoint, expectedPath, err := instantResultEndpoint(client, instant, test.Type)
 	if err != nil {
 		return err
@@ -173,6 +179,7 @@ func runTest(ctx context.Context, client *apiClient, test TestConfig, ids []stri
 			if err != nil {
 				return err
 			}
+			client.enrichAgents(outcomes, names, instant.TestID)
 			result.Agents = outcomes
 			if complete {
 				result.Status = "passed"
