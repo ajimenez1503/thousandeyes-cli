@@ -70,12 +70,10 @@ func TestMissingAppLinksUseValidatedPublicIdentityOnly(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, kind := range []string{"http-server", "agent-to-server"} {
-			agents := []AgentResult{{AgentID: "6", RoundID: "10"}}
-			client.enrichAgents(agents, nil, "101")
-			if got, want := agents[0].URL, "https://app.thousandeyes.com/view/tests?__a=123&agentId=6&roundId=10&testId=101"; got != want {
-				t.Fatalf("%s fallback=%q want %q", kind, got, want)
-			}
+		agents := []AgentResult{{AgentID: "6", RoundID: "10"}}
+		client.enrichAgents(agents, nil, "101")
+		if got, want := agents[0].URL, "https://app.thousandeyes.com/view/tests?__a=123&agentId=6&roundId=10&testId=101"; got != want {
+			t.Fatalf("fallback=%q want %q", got, want)
 		}
 		for _, round := range []string{"", "0", "-1", "10&secret=1", strings.Repeat("1", 33)} {
 			if got := client.appLink("101", "6", round); got != "" {
@@ -86,7 +84,7 @@ func TestMissingAppLinksUseValidatedPublicIdentityOnly(t *testing.T) {
 			t.Fatal("link generated for invalid test identity")
 		}
 		approved := "https://app.thousandeyes.eu/view/tests?testId=101"
-		agents := []AgentResult{{AgentID: "6", RoundID: "10", URL: approved}}
+		agents = []AgentResult{{AgentID: "6", RoundID: "10", URL: approved}}
 		client.enrichAgents(agents, nil, "101")
 		if agents[0].URL != approved {
 			t.Fatal("fallback replaced an API-provided approved link")

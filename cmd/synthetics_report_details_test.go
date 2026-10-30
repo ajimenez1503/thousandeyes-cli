@@ -157,6 +157,90 @@ func TestSyntheticsReportDetailsHTTPMetadataAcrossOutputs(t *testing.T) {
 	}
 }
 
+func TestSyntheticsReportDetailsRedactsControlSeparatedTokenAcrossOutputs(t *testing.T) {
+	for _, source := range []string{"result-name", "creation-fallback"} {
+		t.Run(source, func(t *testing.T) {
+			const unsafeName = "Agent synthetics-test-\x00token"
+			const wantName = "Agent [REDACTED]"
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch {
+				case r.Method == http.MethodPost && r.URL.Path == "/v7/tests/http-server/instant":
+					name := "Creation agent"
+					if source == "creation-fallback" {
+						name = unsafeName
+					}
+					syntheticJSON(t, w, http.StatusCreated, map[string]any{"testId": "101", "agents": []any{
+						map[string]any{"agentId": "6", "agentType": "cloud", "agentName": name},
+					}})
+				case r.Method == http.MethodGet && r.URL.Path == "/v7/test-results/101/http-server":
+					agent := map[string]any{"agentId": "6"}
+					if source == "result-name" {
+						agent["agentName"] = unsafeName
+					}
+					syntheticJSON(t, w, http.StatusOK, map[string]any{"results": []any{
+						map[string]any{"agent": agent, "roundId": 1793268000, "responseCode": 200},
+					}})
+				default:
+					t.Errorf("metadata must not add API requests: %s %s", r.Method, r.URL.Path)
+					w.WriteHeader(http.StatusNotFound)
+				}
+			}))
+			defer server.Close()
+			directory := t.TempDir()
+			reportPath, junitPath := filepath.Join(directory, "result.json"), filepath.Join(directory, "result.xml")
+			stdout, stderr, err := executeSyntheticSuite(t, server.URL, singleHTTPConfig("blocking"), "--json-report", reportPath, "--junit-report", junitPath)
+			if err != nil {
+				t.Fatalf("metadata sanitization changed passing outcome: %v", err)
+			}
+			report, jsonBytes := readSyntheticDetailsReport(t, reportPath)
+			if len(report.Tests) != 1 || len(report.Tests[0].Agents) != 1 || report.Tests[0].Status != "passed" || report.Tests[0].Agents[0].Status != "passed" {
+				t.Fatalf("metadata sanitization changed agent results: %s", jsonBytes)
+			}
+			if got := report.Tests[0].Agents[0].AgentName; got != wantName {
+				t.Errorf("JSON agent name = %q, want %q", got, wantName)
+			}
+			xmlBytes, err := os.ReadFile(junitPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			var suite struct {
+				Errors   int `xml:"errors,attr"`
+				Failures int `xml:"failures,attr"`
+				Cases    []struct {
+					Properties []struct {
+						Name  string `xml:"name,attr"`
+						Value string `xml:"value,attr"`
+					} `xml:"properties>property"`
+				} `xml:"testcase"`
+			}
+			if err := xml.Unmarshal(xmlBytes, &suite); err != nil {
+				t.Fatal(err)
+			}
+			if suite.Errors != 0 || suite.Failures != 0 || len(suite.Cases) != 1 {
+				t.Fatalf("JUnit outcome changed: %s", xmlBytes)
+			}
+			properties := map[string]string{}
+			for _, property := range suite.Cases[0].Properties {
+				properties[property.Name] = property.Value
+			}
+			if properties["agentName"] != wantName {
+				t.Errorf("JUnit agent name = %q, want %q", properties["agentName"], wantName)
+			}
+			for channel, output := range map[string]string{"JSON": string(jsonBytes), "terminal": stdout, "JUnit": string(xmlBytes)} {
+				if strings.Contains(output, "synthetics-test-token") || strings.ContainsRune(output, '\x00') {
+					t.Errorf("%s exposed token or control character", channel)
+				}
+				if !strings.Contains(output, wantName) {
+					t.Errorf("%s omitted the redacted name", channel)
+				}
+			}
+			if strings.Contains(stderr, "synthetics-test-token") || strings.ContainsRune(stderr, '\x00') {
+				t.Error("stderr exposed token or control character")
+			}
+		})
+	}
+}
+
 func TestSyntheticsReportDetailsRetainedOnPartialTimeout(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch {

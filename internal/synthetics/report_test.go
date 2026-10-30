@@ -44,20 +44,39 @@ func TestJUnitReportsAgentFailuresErrorsAndSkippedTests(t *testing.T) {
 type brokenReportWriter struct{}
 
 func TestJUnitPreservesExecutionErrorAfterPassingAgentRows(t *testing.T) {
-	report := Report{Tests: []TestResult{{
-		Name: "incomplete", Type: "http-server", Status: "timed-out", Message: "results incomplete",
-		Agents: []AgentResult{{AgentID: "6", Status: "passed"}},
-	}}}
-	var out bytes.Buffer
-	if err := WriteJUnit(&out, report); err != nil {
-		t.Fatal(err)
-	}
-	var suite junitSuite
-	if err := xml.Unmarshal(out.Bytes(), &suite); err != nil {
-		t.Fatal(err)
-	}
-	if suite.Errors != 1 || suite.Tests != 2 {
-		t.Fatalf("execution failure disappeared from JUnit: %s", out.String())
+	for _, status := range []string{"error", "timed-out"} {
+		t.Run(status, func(t *testing.T) {
+			report := Report{Tests: []TestResult{{
+				Name: "incomplete", Type: "http-server", TestID: "101", ExecutionRule: "non-blocking",
+				Target: "https://service.invalid/health", Status: status, Message: "results incomplete",
+				Agents: []AgentResult{{AgentID: "6", AgentName: "Example agent", Status: "passed"}},
+			}}}
+			var out bytes.Buffer
+			if err := WriteJUnit(&out, report); err != nil {
+				t.Fatal(err)
+			}
+			var suite junitSuite
+			if err := xml.Unmarshal(out.Bytes(), &suite); err != nil {
+				t.Fatal(err)
+			}
+			if suite.Errors != 1 || suite.Tests != 2 || len(suite.Cases) != 2 {
+				t.Fatalf("execution failure disappeared from JUnit: %s", out.String())
+			}
+			if suite.Cases[1].Name != "incomplete / execution" || suite.Cases[1].Error == nil || suite.Cases[1].Error.Type != status {
+				t.Fatalf("execution error identity changed: %+v", suite.Cases[1])
+			}
+			for _, testCase := range suite.Cases {
+				properties := map[string]string{}
+				for _, property := range testCase.Properties {
+					properties[property.Name] = property.Value
+				}
+				for name, want := range map[string]string{"testId": "101", "executionRule": "non-blocking", "target": "https://service.invalid/health"} {
+					if got := properties[name]; got != want {
+						t.Errorf("case %q property %s=%q, want %q", testCase.Name, name, got, want)
+					}
+				}
+			}
+		})
 	}
 }
 

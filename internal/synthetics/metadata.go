@@ -17,15 +17,16 @@ import (
 var reportHostname = regexp.MustCompile(`(?i)^[a-z0-9](?:[a-z0-9._-]*[a-z0-9])?\.?$`)
 
 func reportText(value, token string, limit int) string {
-	if token != "" {
-		value = strings.ReplaceAll(value, token, "[REDACTED]")
-	}
+	// Normalize first so removing controls cannot reconstruct a redacted token.
 	value = strings.TrimSpace(strings.Map(func(character rune) rune {
 		if unicode.IsControl(character) {
 			return -1
 		}
 		return character
 	}, value))
+	if token != "" {
+		value = strings.ReplaceAll(value, token, "[REDACTED]")
+	}
 	characters := []rune(value)
 	if len(characters) > limit {
 		value = string(characters[:limit-3]) + "..."
